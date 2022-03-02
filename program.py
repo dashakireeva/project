@@ -1,7 +1,7 @@
 import os
 import sys
-import pygame
 from random import randint
+import pygame
 
 pygame.init()
 
@@ -16,7 +16,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CARS = ('car_01.png', 'car_02.png', 'car_03.png', 'car_04.png', 'car_05.png',
         'car_06.png', 'car_07.png', 'car_08.png', 'car_09.png', 'car_10.png', 'car_11.png')
-ASSIST = ('koleco.png', 'kluch.png', "box.png")
+ASSIST = ('koleco.png', 'kluch.png', "box.png", "bomb.png")
 CARS_SURF = []
 ASSIST_SURF = []
 FPS = 50
@@ -65,16 +65,17 @@ def start_screen():
                   "клавиш-стрелок вверх, вниз, влево, вправо",
                   "в ходе игры необходимо избегать сталкновение",
                   "с другими автомашинами, и собирать больше",
-                  "колес и гаечных ключей",
+                  "колес,ящики и гаечных ключей",
+                  "избегать выезд с полотна",
                   "при нажатие пробела, наступает пауза в игре",
                   "при повторном нажатие на паузу игра продолжатся"]
 
-    fon = pygame.transform.scale(load_image('grass.png'), (WIDTH, HEIGHT))
+    fon = pygame.transform.scale(load_image('fon_01.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('white'))
+        string_rendered = font.render(line, 1, BLACK)
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
@@ -94,15 +95,17 @@ def start_screen():
 
 
 class Flowers(pygame.sprite.Sprite):
-    image_boom = load_image("bomb.png")
+    image_boom = load_image("boom.png")
 
     def __init__(self, x, surf, group):
+        pygame.sprite.Sprite.__init__
+        (self)
         super().__init__(all_sprites)
-        pygame.sprite.Sprite.__init__(self)
         self.image = surf
         self.rect = self.image.get_rect(center=(x, 0))
         self.add(group)
         self.speed = randint(1, 5)
+        self.www = 0
 
     def update(self):
         if self.rect.y < HEIGHT:
@@ -110,8 +113,11 @@ class Flowers(pygame.sprite.Sprite):
         else:
             self.kill()
         if pygame.sprite.spritecollideany(self, my_cars):
-            self.image = self.image_boom
-            self.kill()
+            if self.www < 3:
+                self.www += 1
+                self.image = self.image_boom
+            else:
+                self.kill()
 
 
 class Car(pygame.sprite.Sprite):
@@ -124,6 +130,7 @@ class Car(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, 0))
         self.add(group)
         self.speed = randint(1, 5)
+        self.www = 0
 
     def update(self):
         if self.rect.y < HEIGHT:
@@ -131,7 +138,27 @@ class Car(pygame.sprite.Sprite):
         else:
             self.kill()
         if pygame.sprite.spritecollideany(self, my_cars):
-            self.image = self.image_boom
+            if self.www < 3:
+                self.www += 1
+                self.image = self.image_boom
+            else:
+                self.kill()
+
+
+class Border(pygame.sprite.Sprite):
+    def __init__(self, x1, y1, x2, y2):
+        super().__init__(all_sprites)
+        print(x1, y1, x2, y2)
+        print(x1 + 1, y1 + 1, x2 + 1, y2 + 1)
+
+        if x1 == x2:
+            self.add(vertical_borders)
+            self.image = pygame.Surface([1, y2 - y1])
+            self.rect = pygame.Rect(x1, y1, 1, y2 - y1)
+        else:
+            self.add(horizontal_borders)
+            self.image = pygame.Surface([x2 - x1, 1])
+            self.rect = pygame.Rect(x1, y1, x2 - x1, 1)
 
 
 class My_Car(pygame.sprite.Sprite):
@@ -142,13 +169,39 @@ class My_Car(pygame.sprite.Sprite):
         super().__init__(all_sprites)
         self.image = surf
         self.original = surf
-        self.rect = self.image.get_rect(center=(x, HEIGHT - 10))
+        self.rect = self.image.get_rect(center=(x, HEIGHT - 30))
         self.add(group)
+        self.direction = None
+
+    def function(self):
+        if self.direction == 1073741904:
+            player.rect.x += 3
+        elif self.direction == 1073741903:
+            player.rect.x -= 3
+        elif self.direction == 1073741906:
+            player.rect.y += 3
+        elif self.direction == 1073741905:
+            player.rect.y -= 3
 
     def update(self):
         self.image = self.original
         if pygame.sprite.spritecollideany(self, cars):
             self.image = self.image_boom
+        if pygame.sprite.spritecollideany(self, horizontal_borders):
+            self.image = self.image_boom
+            self.function()
+        elif pygame.sprite.spritecollideany(self, vertical_borders):
+            self.image = self.image_boom
+            self.function()
+        else:
+            if self.direction == 1073741904:
+                motion = LEFT
+            elif self.direction == 1073741903:
+                motion = RIGHT
+            elif self.direction == 1073741906:
+                motion = UP
+            elif self.direction == 1073741905:
+                motion = DOWN
 
 
 class Over(pygame.sprite.Sprite):
@@ -163,14 +216,20 @@ class Over(pygame.sprite.Sprite):
 
 
 start_screen()
-
+horizontal_borders = pygame.sprite.Group()
+vertical_borders = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
+Border(5, 5, WIDTH - 5, 5)
+Border(5, HEIGHT - 5, WIDTH - 5, HEIGHT - 5)
+Border(5, 5, 5, HEIGHT - 5)
+Border(WIDTH - 5, 5, WIDTH - 5, HEIGHT - 5)
 cars = pygame.sprite.Group()
 my_cars = pygame.sprite.Group()
 flowers = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 paused = (False, 1)
 running = True
-Car(randint(1, WIDTH), CARS_SURF[randint(0, 2)], cars)
+Car(randint(1, WIDTH), CARS_SURF[randint(0, 3)], cars)
 player = My_Car(WIDTH // 2, load_image('my_car_01.png'), my_cars)
 
 while running:
@@ -182,6 +241,7 @@ while running:
             Flowers(randint(1, WIDTH), ASSIST_SURF[randint(0, 2)], flowers)
             Flowers(randint(1, WIDTH), ASSIST_SURF[randint(0, 2)], flowers)
         elif event.type == pygame.KEYDOWN:
+            print(player.rect[0], player.rect[1], player.rect[2], player.rect[3])
             if event.key == pygame.K_LEFT:
                 motion = LEFT
             elif event.key == pygame.K_RIGHT:
@@ -190,7 +250,7 @@ while running:
                 motion = UP
             elif event.key == 1073741905:
                 motion = DOWN
-            elif event.key == 32:
+            if event.key == 32:
                 if paused[1] % 2 == 1:
                     paused = (True, 0)
                 else:
@@ -198,16 +258,14 @@ while running:
         elif event.type == pygame.KEYUP:
             if event.key in [pygame.K_LEFT, pygame.K_RIGHT, 1073741906, 1073741905]:
                 motion = STOP
-
-    if motion == LEFT:
+    if motion == LEFT and player.rect[0] >= 0:
         player.rect.x -= 3
-    elif motion == RIGHT:
+    elif motion == RIGHT and player.rect[0] <= 571:
         player.rect.x += 3
-    elif motion == UP:
+    elif motion == UP and player.rect[1] >= 0:
         player.rect.y -= 3
-    elif motion == DOWN:
+    elif motion == DOWN and player.rect[1] <= 750:
         player.rect.y += 3
-
     if paused[0]:
         pass
     else:
